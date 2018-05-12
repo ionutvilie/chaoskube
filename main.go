@@ -15,8 +15,8 @@ import (
 	_ "k8s.io/client-go/plugin/pkg/client/auth"
 	"k8s.io/client-go/tools/clientcmd"
 
-	"github.com/linki/chaoskube/chaoskube"
-	"github.com/linki/chaoskube/util"
+	"github.com/ionutvilie/chaoskube/chaoskube"
+	"github.com/ionutvilie/chaoskube/util"
 )
 
 var (
@@ -37,22 +37,26 @@ var (
 	dryRun             bool
 	debug              bool
 	httpServer         bool
-	ckCfg              chaoskubeConfig
+	ckCfg              chaoskubeFlagsConfig
 )
 
-type chaoskubeConfig struct {
-	Labels,
-	Annotations,
-	Namespaces,
-	ExcludedWeekdays,
-	ExcludedTimesOfDay,
-	ExcludedDaysOfYear,
-	Timezone,
-	Master,
-	Kubeconfig string
-	DryRun, HTTPServer,
-	Debug bool
-	Interval time.Duration
+// flags should be bind to this structure
+// flags should be falidated by a new method
+// main function should be shrinked down
+type chaoskubeFlagsConfig struct {
+	Labels             string
+	Annotations        string
+	Namespaces         string
+	ExcludedWeekdays   string
+	ExcludedTimesOfDay string
+	ExcludedDaysOfYear string
+	Timezone           string
+	Master             string
+	Kubeconfig         string
+	DryRun             bool
+	HTTPServer         bool
+	Debug              bool
+	Interval           time.Duration
 }
 
 func init() {
@@ -172,7 +176,7 @@ func main() {
 	if httpServer {
 		// start httpServer
 		//@toDo improve conde
-		ckCfg = chaoskubeConfig{
+		ckCfg = chaoskubeFlagsConfig{
 			Labels:             labelString,
 			Annotations:        annString,
 			Namespaces:         nsString,

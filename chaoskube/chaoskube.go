@@ -14,7 +14,7 @@ import (
 	"k8s.io/apimachinery/pkg/selection"
 	"k8s.io/client-go/kubernetes"
 
-	"github.com/linki/chaoskube/util"
+	"github.com/ionutvilie/chaoskube/util"
 )
 
 // Chaoskube represents an instance of chaoskube
