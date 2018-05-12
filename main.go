@@ -49,6 +49,7 @@ type chaoskubeFlagsConfig struct {
 
 func init() {
 	rand.Seed(time.Now().UTC().UnixNano())
+
 	kingpin.Flag("labels", "A set of labels to restrict the list of affected pods. Defaults to everything.").StringVar(&ckFC.Labels)
 	kingpin.Flag("annotations", "A set of annotations to restrict the list of affected pods. Defaults to everything.").StringVar(&ckFC.Annotations)
 	kingpin.Flag("namespaces", "A set of namespaces to restrict the list of affected pods. Defaults to everything.").StringVar(&ckFC.Namespaces)
@@ -147,7 +148,7 @@ func main() {
 		"offset":   offset / int(time.Hour/time.Second),
 	}).Info("setting timezone")
 
-	chaoskube := chaoskube.New(
+	ck := chaoskube.New(
 		client,
 		labelSelector,
 		annotations,
@@ -165,7 +166,7 @@ func main() {
 	}
 
 	for {
-		if err := chaoskube.TerminateVictim(); err != nil {
+		if err := ck.TerminateVictim(); err != nil {
 			log.WithField("err", err).Error("failed to terminate victim")
 		}
 
