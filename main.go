@@ -21,23 +21,11 @@ import (
 
 var (
 	version = "undefined"
+	ckFC    = &chaoskubeFlagsConfig{}
 )
 
 var (
-	labelString        string
-	annString          string
-	nsString           string
-	excludedWeekdays   string
-	excludedTimesOfDay string
-	excludedDaysOfYear string
-	timezone           string
-	master             string
-	kubeconfig         string
-	interval           time.Duration
-	dryRun             bool
-	debug              bool
-	httpServer         bool
-	ckCfg              chaoskubeFlagsConfig
+// ckFC *chaoskubeFlagsConfig
 )
 
 // flags should be bind to this structure
@@ -61,60 +49,59 @@ type chaoskubeFlagsConfig struct {
 
 func init() {
 	rand.Seed(time.Now().UTC().UnixNano())
-
-	kingpin.Flag("labels", "A set of labels to restrict the list of affected pods. Defaults to everything.").StringVar(&labelString)
-	kingpin.Flag("annotations", "A set of annotations to restrict the list of affected pods. Defaults to everything.").StringVar(&annString)
-	kingpin.Flag("namespaces", "A set of namespaces to restrict the list of affected pods. Defaults to everything.").StringVar(&nsString)
-	kingpin.Flag("excluded-weekdays", "A list of weekdays when termination is suspended, e.g. Sat,Sun").StringVar(&excludedWeekdays)
-	kingpin.Flag("excluded-times-of-day", "A list of time periods of a day when termination is suspended, e.g. 22:00-08:00").StringVar(&excludedTimesOfDay)
-	kingpin.Flag("excluded-days-of-year", "A list of days of a year when termination is suspended, e.g. Apr1,Dec24").StringVar(&excludedDaysOfYear)
-	kingpin.Flag("timezone", "The timezone by which to interpret the excluded weekdays and times of day, e.g. UTC, Local, Europe/Berlin. Defaults to UTC.").Default("UTC").StringVar(&timezone)
-	kingpin.Flag("master", "The address of the Kubernetes cluster to target").StringVar(&master)
-	kingpin.Flag("kubeconfig", "Path to a kubeconfig file").StringVar(&kubeconfig)
-	kingpin.Flag("interval", "Interval between Pod terminations").Default("10m").DurationVar(&interval)
-	kingpin.Flag("dry-run", "If true, don't actually do anything.").Default("true").BoolVar(&dryRun)
-	kingpin.Flag("debug", "Enable debug logging.").BoolVar(&debug)
-	kingpin.Flag("httpServer", "Enable httpServer.").Default("true").BoolVar(&httpServer)
+	kingpin.Flag("labels", "A set of labels to restrict the list of affected pods. Defaults to everything.").StringVar(&ckFC.Labels)
+	kingpin.Flag("annotations", "A set of annotations to restrict the list of affected pods. Defaults to everything.").StringVar(&ckFC.Annotations)
+	kingpin.Flag("namespaces", "A set of namespaces to restrict the list of affected pods. Defaults to everything.").StringVar(&ckFC.Namespaces)
+	kingpin.Flag("excluded-weekdays", "A list of weekdays when termination is suspended, e.g. Sat,Sun").StringVar(&ckFC.ExcludedWeekdays)
+	kingpin.Flag("excluded-times-of-day", "A list of time periods of a day when termination is suspended, e.g. 22:00-08:00").StringVar(&ckFC.ExcludedTimesOfDay)
+	kingpin.Flag("excluded-days-of-year", "A list of days of a year when termination is suspended, e.g. Apr1,Dec24").StringVar(&ckFC.ExcludedDaysOfYear)
+	kingpin.Flag("timezone", "The timezone by which to interpret the excluded weekdays and times of day, e.g. UTC, Local, Europe/Berlin. Defaults to UTC.").Default("UTC").StringVar(&ckFC.Timezone)
+	kingpin.Flag("master", "The address of the Kubernetes cluster to target").StringVar(&ckFC.Master)
+	kingpin.Flag("kubeconfig", "Path to a kubeconfig file").StringVar(&ckFC.Kubeconfig)
+	kingpin.Flag("interval", "Interval between Pod terminations").Default("10m").DurationVar(&ckFC.Interval)
+	kingpin.Flag("dry-run", "If true, don't actually do anything.").Default("true").BoolVar(&ckFC.DryRun)
+	kingpin.Flag("debug", "Enable debug logging.").BoolVar(&ckFC.Debug)
+	kingpin.Flag("httpServer", "Enable httpServer.").Default("true").BoolVar(&ckFC.HTTPServer)
 }
 
 func main() {
 	kingpin.Version(version)
 	kingpin.Parse()
 
-	if debug {
+	if ckFC.Debug {
 		log.SetLevel(log.DebugLevel)
 	}
 
 	log.WithFields(log.Fields{
-		"labels":             labelString,
-		"annotations":        annString,
-		"namespaces":         nsString,
-		"excludedWeekdays":   excludedWeekdays,
-		"excludedTimesOfDay": excludedTimesOfDay,
-		"excludedDaysOfYear": excludedDaysOfYear,
-		"timezone":           timezone,
-		"master":             master,
-		"kubeconfig":         kubeconfig,
-		"interval":           interval,
-		"dryRun":             dryRun,
-		"debug":              debug,
+		"labels":             ckFC.Labels,
+		"annotations":        ckFC.Annotations,
+		"namespaces":         ckFC.Namespaces,
+		"excludedWeekdays":   ckFC.ExcludedWeekdays,
+		"excludedTimesOfDay": ckFC.ExcludedTimesOfDay,
+		"excludedDaysOfYear": ckFC.ExcludedDaysOfYear,
+		"timezone":           ckFC.Timezone,
+		"master":             ckFC.Master,
+		"kubeconfig":         ckFC.Kubeconfig,
+		"interval":           ckFC.Interval,
+		"dryRun":             ckFC.DryRun,
+		"debug":              ckFC.Debug,
 	}).Debug("reading config")
 
 	log.WithFields(log.Fields{
 		"version":  version,
-		"dryRun":   dryRun,
-		"interval": interval,
+		"dryRun":   ckFC.DryRun,
+		"interval": ckFC.Interval,
 	}).Info("starting up")
 
-	client, err := newClient()
+	client, err := ckFC.newK8sClient()
 	if err != nil {
 		log.WithField("err", err).Fatal("failed to connect to cluster")
 	}
 
 	var (
-		labelSelector = parseSelector(labelString)
-		annotations   = parseSelector(annString)
-		namespaces    = parseSelector(nsString)
+		labelSelector = parseSelector(ckFC.Labels)
+		annotations   = parseSelector(ckFC.Annotations)
+		namespaces    = parseSelector(ckFC.Namespaces)
 	)
 
 	log.WithFields(log.Fields{
@@ -123,18 +110,18 @@ func main() {
 		"namespaces":  namespaces,
 	}).Info("setting pod filter")
 
-	parsedWeekdays := util.ParseWeekdays(excludedWeekdays)
-	parsedTimesOfDay, err := util.ParseTimePeriods(excludedTimesOfDay)
+	parsedWeekdays := util.ParseWeekdays(ckFC.ExcludedWeekdays)
+	parsedTimesOfDay, err := util.ParseTimePeriods(ckFC.ExcludedTimesOfDay)
 	if err != nil {
 		log.WithFields(log.Fields{
-			"timesOfDay": excludedTimesOfDay,
+			"timesOfDay": ckFC.ExcludedTimesOfDay,
 			"err":        err,
 		}).Fatal("failed to parse times of day")
 	}
-	parsedDaysOfYear, err := util.ParseDays(excludedDaysOfYear)
+	parsedDaysOfYear, err := util.ParseDays(ckFC.ExcludedDaysOfYear)
 	if err != nil {
 		log.WithFields(log.Fields{
-			"daysOfYear": excludedDaysOfYear,
+			"daysOfYear": ckFC.ExcludedDaysOfYear,
 			"err":        err,
 		}).Fatal("failed to parse days of year")
 	}
@@ -145,10 +132,10 @@ func main() {
 		"daysOfYear": formatDays(parsedDaysOfYear),
 	}).Info("setting quiet times")
 
-	parsedTimezone, err := time.LoadLocation(timezone)
+	parsedTimezone, err := time.LoadLocation(ckFC.Timezone)
 	if err != nil {
 		log.WithFields(log.Fields{
-			"timeZone": timezone,
+			"timeZone": ckFC.Timezone,
 			"err":      err,
 		}).Fatal("failed to detect time zone")
 	}
@@ -170,27 +157,10 @@ func main() {
 		parsedDaysOfYear,
 		parsedTimezone,
 		log.StandardLogger(),
-		dryRun,
+		ckFC.DryRun,
 	)
 
-	if httpServer {
-		// start httpServer
-		//@toDo improve conde
-		ckCfg = chaoskubeFlagsConfig{
-			Labels:             labelString,
-			Annotations:        annString,
-			Namespaces:         nsString,
-			ExcludedWeekdays:   excludedWeekdays,
-			ExcludedTimesOfDay: excludedTimesOfDay,
-			ExcludedDaysOfYear: excludedDaysOfYear,
-			Timezone:           timezone,
-			Master:             master,
-			Kubeconfig:         kubeconfig,
-			DryRun:             dryRun,
-			HTTPServer:         httpServer,
-			Debug:              debug,
-			Interval:           interval,
-		}
+	if ckFC.HTTPServer {
 		go httpMuxServer()
 	}
 
@@ -199,26 +169,26 @@ func main() {
 			log.WithField("err", err).Error("failed to terminate victim")
 		}
 
-		log.WithField("duration", interval).Debug("sleeping")
-		time.Sleep(interval)
+		log.WithField("duration", ckFC.Interval).Debug("sleeping")
+		time.Sleep(ckFC.Interval)
 	}
 
 }
 
-// func newClient ...
-func newClient() (*kubernetes.Clientset, error) {
-	if kubeconfig == "" {
+// newK8sClient returns a new kubernetes client
+func (ckFC *chaoskubeFlagsConfig) newK8sClient() (*kubernetes.Clientset, error) {
+	if ckFC.Kubeconfig == "" {
 		if _, err := os.Stat(clientcmd.RecommendedHomeFile); err == nil {
-			kubeconfig = clientcmd.RecommendedHomeFile
+			ckFC.Kubeconfig = clientcmd.RecommendedHomeFile
 		}
 	}
 
 	log.WithFields(log.Fields{
-		"kubeconfig": kubeconfig,
-		"master":     master,
+		"kubeconfig": ckFC.Kubeconfig,
+		"master":     ckFC.Master,
 	}).Debug("using cluster config")
 
-	config, err := clientcmd.BuildConfigFromFlags(master, kubeconfig)
+	config, err := clientcmd.BuildConfigFromFlags(ckFC.Master, ckFC.Kubeconfig)
 	if err != nil {
 		return nil, err
 	}
@@ -283,15 +253,16 @@ func healthHandler(wr http.ResponseWriter, req *http.Request) {
 	wr.Write([]byte(`{"Status": OK}`))
 }
 
-// configHandler returns chaoskube configuration
+// configHandler manages chaoskube configuration
+// method get  --> gets monkey config
+// method post --> updates config // -- not implemented
 func configHandler(wr http.ResponseWriter, req *http.Request) {
-	configData, err := json.Marshal(ckCfg)
-
+	wr.Header().Set("Access-Control-Allow-Origin", "*")
+	configData, err := json.Marshal(ckFC)
 	if err != nil {
 		http.Error(wr, err.Error(), http.StatusInternalServerError)
 		return
 	}
-	wr.Header().Set("Access-Control-Allow-Origin", "*")
 	wr.Header().Set("Content-Type", "application/json")
 	wr.Write(configData)
 }
