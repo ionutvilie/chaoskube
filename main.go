@@ -1,7 +1,9 @@
 package main
 
 import (
+	"encoding/json"
 	"math/rand"
+	"net/http"
 	"os"
 	"time"
 
@@ -34,7 +36,24 @@ var (
 	interval           time.Duration
 	dryRun             bool
 	debug              bool
+	httpServer         bool
+	ckCfg              chaoskubeConfig
 )
+
+type chaoskubeConfig struct {
+	Labels,
+	Annotations,
+	Namespaces,
+	ExcludedWeekdays,
+	ExcludedTimesOfDay,
+	ExcludedDaysOfYear,
+	Timezone,
+	Master,
+	Kubeconfig string
+	DryRun, HTTPServer,
+	Debug bool
+	Interval time.Duration
+}
 
 func init() {
 	rand.Seed(time.Now().UTC().UnixNano())
@@ -51,6 +70,7 @@ func init() {
 	kingpin.Flag("interval", "Interval between Pod terminations").Default("10m").DurationVar(&interval)
 	kingpin.Flag("dry-run", "If true, don't actually do anything.").Default("true").BoolVar(&dryRun)
 	kingpin.Flag("debug", "Enable debug logging.").BoolVar(&debug)
+	kingpin.Flag("httpServer", "Enable httpServer.").Default("true").BoolVar(&httpServer)
 }
 
 func main() {
@@ -149,6 +169,27 @@ func main() {
 		dryRun,
 	)
 
+	if httpServer {
+		// start httpServer
+		//@toDo improve conde
+		ckCfg = chaoskubeConfig{
+			Labels:             labelString,
+			Annotations:        annString,
+			Namespaces:         nsString,
+			ExcludedWeekdays:   excludedWeekdays,
+			ExcludedTimesOfDay: excludedTimesOfDay,
+			ExcludedDaysOfYear: excludedDaysOfYear,
+			Timezone:           timezone,
+			Master:             master,
+			Kubeconfig:         kubeconfig,
+			DryRun:             dryRun,
+			HTTPServer:         httpServer,
+			Debug:              debug,
+			Interval:           interval,
+		}
+		go httpMuxServer()
+	}
+
 	for {
 		if err := chaoskube.TerminateVictim(); err != nil {
 			log.WithField("err", err).Error("failed to terminate victim")
@@ -157,8 +198,10 @@ func main() {
 		log.WithField("duration", interval).Debug("sleeping")
 		time.Sleep(interval)
 	}
+
 }
 
+// func newClient ...
 func newClient() (*kubernetes.Clientset, error) {
 	if kubeconfig == "" {
 		if _, err := os.Stat(clientcmd.RecommendedHomeFile); err == nil {
@@ -211,4 +254,40 @@ func formatDays(days []time.Time) []string {
 		formattedDays = append(formattedDays, d.Format(util.YearDay))
 	}
 	return formattedDays
+}
+
+// simple httpServer
+func httpMuxServer() {
+
+	mux := http.NewServeMux()
+	mux.HandleFunc("/api/v1/config", configHandler)     //
+	mux.HandleFunc("/.well-known/live", healthHandler)  // k8s pod process started
+	mux.HandleFunc("/.well-known/ready", healthHandler) // k8s pod is ready to accept traffic
+
+	// log.WithFields("info", "http server").Info("http server started on :8080")
+	log.Infoln("http server started on :8080")
+	err := http.ListenAndServe(":8080", mux)
+	if err != nil {
+		log.WithField("err", err).Fatal("ListenAndServe")
+	}
+
+}
+
+// healthHandler to be used for k8s live and ready probe
+func healthHandler(wr http.ResponseWriter, req *http.Request) {
+	wr.WriteHeader(http.StatusOK)
+	wr.Write([]byte(`{"Status": OK}`))
+}
+
+// configHandler returns chaoskube configuration
+func configHandler(wr http.ResponseWriter, req *http.Request) {
+	configData, err := json.Marshal(ckCfg)
+
+	if err != nil {
+		http.Error(wr, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	wr.Header().Set("Access-Control-Allow-Origin", "*")
+	wr.Header().Set("Content-Type", "application/json")
+	wr.Write(configData)
 }
