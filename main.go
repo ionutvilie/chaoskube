@@ -11,12 +11,13 @@ import (
 
 	_ "k8s.io/client-go/plugin/pkg/client/auth"
 
-	"github.com/ionutvilie/chaoskube/internal"
+	"github.com/metrosystems-cpe/chaoskube/internal"
 )
 
 var (
 	version = "undefined"
 	ckConf  = &internal.ChaoskubeConfig{}
+	quit    = make(chan bool) // channel used to send "kill" message to routine where monkey run.
 )
 
 func init() {
@@ -52,30 +53,18 @@ func main() {
 		"interval": ckConf.Interval,
 	}).Info("starting up")
 
-	ck := ckConf.NewMonkey()
-
-	if ckConf.HTTPServer {
-		go httpMuxServer()
-	}
-
-	for {
-		if err := ck.TerminateVictim(); err != nil {
-			log.WithField("err", err).Error("failed to terminate victim")
-		}
-
-		log.WithField("duration", ckConf.Interval).Debug("sleeping")
-		time.Sleep(ckConf.Interval)
-	}
-
+	go startMonkey()
+	httpMuxServer()
 }
 
 // simple httpServer
 func httpMuxServer() {
 
 	mux := http.NewServeMux()
-	mux.HandleFunc("/api/v1/config", configHandler)     //
-	mux.HandleFunc("/.well-known/live", healthHandler)  // k8s pod process started
-	mux.HandleFunc("/.well-known/ready", healthHandler) // k8s pod is ready to accept traffic
+	mux.HandleFunc("/api/v1/config", configHandler)       //
+	mux.HandleFunc("/.well-known/live", healthHandler)    // k8s pod process started
+	mux.HandleFunc("/.well-known/ready", healthHandler)   // k8s pod is ready to accept traffic
+	mux.HandleFunc("/api/v1/update", updateConfigHandler) // k8s pod is ready to accept traffic
 
 	// log.WithFields("info", "http server").Info("http server started on :8080")
 	log.Infoln("http server started on :8080")
@@ -83,7 +72,51 @@ func httpMuxServer() {
 	if err != nil {
 		log.WithField("err", err).Fatal("ListenAndServe")
 	}
+}
 
+func updateConfigHandler(wr http.ResponseWriter, req *http.Request) {
+	newConf := internal.ChaoskubeConfig{}
+	decoder := json.NewDecoder(req.Body)
+	err := decoder.Decode(&newConf)
+	// TODO: Need to find a way to validate config :-?
+	if err != nil {
+		log.Debugf("Fail to decode params. Error: %v", err)
+		wr.WriteHeader(http.StatusInternalServerError)
+		wr.Write([]byte(`{"Status": "Something went wrong. Check logs..."}`)) // Need better error message
+	} else {
+		log.Info("Config updated and will be used after monkey finishes sleep.")
+		ckConf = &newConf
+		go func() {
+			// kill old monkey by pushing true on quit channel
+			quit <- true
+			// restart monkey with new config
+			go startMonkey()
+		}()
+		wr.WriteHeader(http.StatusOK)
+		wr.Write([]byte(`{"Status": "Config will be used after monkey finishes sleeping period"}`)) // Need better error message
+
+	}
+
+}
+
+func startMonkey() {
+	monkey := ckConf.NewMonkey()
+
+	for {
+		select {
+		case <-quit:
+			return
+		default:
+			if err := monkey.TerminateVictim(); err != nil {
+				log.WithField("err", err).Error("failed to terminate victim")
+			}
+
+			log.WithField("duration", ckConf.Interval).Debug("sleeping")
+			time.Sleep(ckConf.Interval)
+			// log.Infof("Killing stuff %v", ckConf.Interval)
+			// time.Sleep(ckConf.Interval)
+		}
+	}
 }
 
 // healthHandler to be used for k8s live and ready probe
