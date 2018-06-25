@@ -79,13 +79,14 @@ func updateConfigHandler(wr http.ResponseWriter, req *http.Request) {
 	decoder := json.NewDecoder(req.Body)
 	err := decoder.Decode(&newConf)
 	// TODO: Need to find a way to validate config :-?
+
 	if err != nil {
 		log.Debugf("Fail to decode params. Error: %v", err)
 		wr.WriteHeader(http.StatusInternalServerError)
 		wr.Write([]byte(`{"Status": "Something went wrong. Check logs..."}`)) // Need better error message
 	} else {
 		log.Info("Config updated and will be used after monkey finishes sleep.")
-		ckConf = &newConf
+		ckConf = newConf.Diff(ckConf)
 		go func() {
 			// kill old monkey by pushing true on quit channel
 			quit <- true
@@ -100,21 +101,21 @@ func updateConfigHandler(wr http.ResponseWriter, req *http.Request) {
 }
 
 func startMonkey() {
-	monkey := ckConf.NewMonkey()
+	// monkey := ckConf.NewMonkey()
 
 	for {
 		select {
 		case <-quit:
 			return
 		default:
-			if err := monkey.TerminateVictim(); err != nil {
-				log.WithField("err", err).Error("failed to terminate victim")
-			}
+			// if err := monkey.TerminateVictim(); err != nil {
+			// 	log.WithField("err", err).Error("failed to terminate victim")
+			// }
 
-			log.WithField("duration", ckConf.Interval).Debug("sleeping")
-			time.Sleep(ckConf.Interval)
-			// log.Infof("Killing stuff %v", ckConf.Interval)
+			// log.WithField("duration", ckConf.Interval).Debug("sleeping")
 			// time.Sleep(ckConf.Interval)
+			log.Infof("Killing stuff %v", ckConf.Interval)
+			time.Sleep(ckConf.Interval)
 		}
 	}
 }

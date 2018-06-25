@@ -2,6 +2,7 @@ package internal
 
 import (
 	"os"
+	"reflect"
 	"time"
 
 	log "github.com/sirupsen/logrus"
@@ -27,6 +28,44 @@ type ChaoskubeConfig struct {
 	HTTPServer         bool
 	Debug              bool
 	Interval           time.Duration
+}
+
+// Diff method used to update config after api call
+func (newConfig *ChaoskubeConfig) Diff(oldConfig *ChaoskubeConfig) *ChaoskubeConfig {
+	v := reflect.ValueOf(*oldConfig)
+	oldConfigStruct := reflect.ValueOf(oldConfig).Elem()
+	newConfigStruct := reflect.ValueOf(newConfig).Elem()
+
+	for i := 0; i < v.NumField(); i++ {
+		fieldName := v.Type().Field(i).Name
+		oldFieldValue := oldConfigStruct.FieldByName(fieldName)
+		newFieldValue := newConfigStruct.FieldByName(fieldName)
+
+		interfaceVal := newFieldValue.Interface()
+		switch tp := newFieldValue.Kind(); tp {
+		case reflect.String:
+			val := interfaceVal.(string)
+			if val != "" && val != oldFieldValue.Interface().(string) {
+				structField := oldConfigStruct.FieldByName(fieldName)
+				structField.Set(newFieldValue)
+			}
+		case reflect.Bool:
+			val := interfaceVal.(bool)
+			if val != oldFieldValue.Interface().(bool) {
+				structField := oldConfigStruct.FieldByName(fieldName)
+				structField.Set(newFieldValue)
+			}
+		default:
+			val := interfaceVal.(time.Duration)
+			if val != oldFieldValue.Interface().(time.Duration) {
+				structField := oldConfigStruct.FieldByName(fieldName)
+				structField.Set(newFieldValue)
+			}
+		}
+	}
+
+	result := oldConfigStruct.Interface().(ChaoskubeConfig)
+	return &result
 }
 
 func (ckFC *ChaoskubeConfig) NewMonkey() *chaoskube.Chaoskube {
