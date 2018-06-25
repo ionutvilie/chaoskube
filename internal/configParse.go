@@ -9,8 +9,8 @@ import (
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/clientcmd"
 
-	"github.com/ionutvilie/chaoskube/chaoskube"
-	"github.com/ionutvilie/chaoskube/util"
+	"github.com/metrosystems-cpe/chaoskube/chaoskube"
+	"github.com/metrosystems-cpe/chaoskube/util"
 )
 
 type ChaoskubeConfig struct {

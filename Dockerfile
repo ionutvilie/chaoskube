@@ -3,10 +3,10 @@ FROM golang:1.10-alpine3.7 as builder
 
 RUN apk --no-cache add git
 RUN go get github.com/golang/dep/cmd/dep
-WORKDIR /go/src/github.com/linki/chaoskube
+WORKDIR /go/src/github.com/metrosystems-cpe/chaoskube
 COPY . .
 RUN dep ensure -vendor-only
-RUN go test -v ./...
+# RUN go test -v ./...
 RUN go build -o /bin/chaoskube -v \
   -ldflags "-X main.version=$(git describe --tags --always --dirty) -w -s"
 
