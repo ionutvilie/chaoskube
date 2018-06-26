@@ -74,7 +74,7 @@ func updateConfigHandler(wr http.ResponseWriter, req *http.Request) {
 	// TODO: Need to find a way to validate config :-?
 
 	if err != nil {
-		log.Debugf("Fail to decode params. Error: %v", err)
+		log.Infof("Fail to decode params. Error: %v", err)
 		wr.WriteHeader(http.StatusInternalServerError)
 		wr.Write([]byte(`{"Status": "Something went wrong. Check logs..."}`)) // Need better error message
 	} else {
