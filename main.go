@@ -46,13 +46,6 @@ func main() {
 		log.SetLevel(log.DebugLevel)
 	}
 
-	log.Debugf("Config struct: %+v", *ckConf)
-	log.WithFields(log.Fields{
-		"version":  version,
-		"dryRun":   ckConf.DryRun,
-		"interval": ckConf.Interval,
-	}).Info("starting up")
-
 	go startMonkey()
 	httpMuxServer()
 }
@@ -101,6 +94,12 @@ func updateConfigHandler(wr http.ResponseWriter, req *http.Request) {
 }
 
 func startMonkey() {
+	log.WithFields(log.Fields{
+		"version":  version,
+		"dryRun":   ckConf.DryRun,
+		"interval": ckConf.Interval,
+	}).Info("Monkey start")
+
 	monkey := ckConf.NewMonkey()
 
 	for {
