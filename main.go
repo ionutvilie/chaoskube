@@ -101,7 +101,7 @@ func updateConfigHandler(wr http.ResponseWriter, req *http.Request) {
 }
 
 func startMonkey() {
-	// monkey := ckConf.NewMonkey()
+	monkey := ckConf.NewMonkey()
 
 	for {
 		select {
