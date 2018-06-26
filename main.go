@@ -108,14 +108,14 @@ func startMonkey() {
 		case <-quit:
 			return
 		default:
-			// if err := monkey.TerminateVictim(); err != nil {
-			// 	log.WithField("err", err).Error("failed to terminate victim")
-			// }
+			if err := monkey.TerminateVictim(); err != nil {
+				log.WithField("err", err).Error("failed to terminate victim")
+			}
 
-			// log.WithField("duration", ckConf.Interval).Debug("sleeping")
-			// time.Sleep(ckConf.Interval)
-			log.Infof("Killing stuff %v", ckConf.Interval)
+			log.WithField("duration", ckConf.Interval).Debug("sleeping")
 			time.Sleep(ckConf.Interval)
+			// log.Infof("Killing stuff %v", ckConf.Interval)
+			// time.Sleep(ckConf.Interval)
 		}
 	}
 }
