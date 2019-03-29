@@ -63,7 +63,7 @@ func httpMuxServer() {
 	log.Infoln("http server started on :8080")
 	err := http.ListenAndServe(":8080", mux)
 	if err != nil {
-		log.WithField("err", err).Fatal("ListenAndServe")
+		log.Fatalf("ListenAndServe error: %v", err)
 	}
 }
 
@@ -94,11 +94,7 @@ func updateConfigHandler(wr http.ResponseWriter, req *http.Request) {
 }
 
 func startMonkey() {
-	log.WithFields(log.Fields{
-		"version":  version,
-		"dryRun":   ckConf.DryRun,
-		"interval": ckConf.Interval,
-	}).Info("Monkey start")
+	log.Infof("Start Monkey! dryRun: %v, Interval: %v", ckConf.DryRun, ckConf.Interval)
 
 	monkey := ckConf.NewMonkey()
 
@@ -108,13 +104,11 @@ func startMonkey() {
 			return
 		default:
 			if err := monkey.TerminateVictim(); err != nil {
-				log.WithField("err", err).Error("failed to terminate victim")
+				log.Errorf("Failed to terminate victim: %v", err)
 			}
 
-			log.WithField("duration", ckConf.Interval).Debug("sleeping")
+			log.Debugf("Sleeping for %v", ckConf.Interval)
 			time.Sleep(ckConf.Interval)
-			// log.Infof("Killing stuff %v", ckConf.Interval)
-			// time.Sleep(ckConf.Interval)
 		}
 	}
 }

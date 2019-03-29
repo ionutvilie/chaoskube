@@ -72,7 +72,7 @@ func (ckFC *ChaoskubeConfig) NewMonkey() *chaoskube.Chaoskube {
 
 	client, err := ckFC.newK8sClient()
 	if err != nil {
-		log.WithField("err", err).Fatal("failed to connect to cluster")
+		log.Debugf("Failed to connect to cluster. %v", err)
 	}
 
 	var (
@@ -81,48 +81,26 @@ func (ckFC *ChaoskubeConfig) NewMonkey() *chaoskube.Chaoskube {
 		namespaces    = parseSelector(ckFC.Namespaces)
 	)
 
-	log.WithFields(log.Fields{
-		"labels":      labelSelector,
-		"annotations": annotations,
-		"namespaces":  namespaces,
-	}).Info("setting pod filter")
+	log.Infof("Setting pod filters. Labels: [ %v ],  Annotations: [ %v ], Namespaces: [ %v ]", labelSelector, annotations, namespaces)
 
 	parsedWeekdays := util.ParseWeekdays(ckFC.ExcludedWeekdays)
 	parsedTimesOfDay, err := util.ParseTimePeriods(ckFC.ExcludedTimesOfDay)
 	if err != nil {
-		log.WithFields(log.Fields{
-			"timesOfDay": ckFC.ExcludedTimesOfDay,
-			"err":        err,
-		}).Fatal("failed to parse times of day")
+		log.Fatalf("failed to parse times of day. timesOfDay: [ %v ], err: %v", ckFC.ExcludedTimesOfDay, err)
 	}
 	parsedDaysOfYear, err := util.ParseDays(ckFC.ExcludedDaysOfYear)
 	if err != nil {
-		log.WithFields(log.Fields{
-			"daysOfYear": ckFC.ExcludedDaysOfYear,
-			"err":        err,
-		}).Fatal("failed to parse days of year")
+		log.Fatalf("failed to parse days of year. daysOfYear: [ %v ], err: %v", ckFC.ExcludedDaysOfYear, err)
 	}
 
-	log.WithFields(log.Fields{
-		"weekdays":   parsedWeekdays,
-		"timesOfDay": parsedTimesOfDay,
-		"daysOfYear": formatDays(parsedDaysOfYear),
-	}).Info("setting quiet times")
+	log.Infof("Setting quiet times... Weeks: %v, timesOfDay: %v, daysOfYear: %v", parsedWeekdays, parsedTimesOfDay, formatDays(parsedDaysOfYear))
 
 	parsedTimezone, err := time.LoadLocation(ckFC.Timezone)
 	if err != nil {
-		log.WithFields(log.Fields{
-			"timeZone": ckFC.Timezone,
-			"err":      err,
-		}).Fatal("failed to detect time zone")
+		log.Fatalf("Failed to detect time zone. tz: %v, err: %v", ckFC.Timezone, err)
 	}
 	timezoneName, offset := time.Now().In(parsedTimezone).Zone()
-
-	log.WithFields(log.Fields{
-		"name":     timezoneName,
-		"location": parsedTimezone,
-		"offset":   offset / int(time.Hour/time.Second),
-	}).Info("setting timezone")
+	log.Infof("Setting timezone to: name: %s, location: %s, offset: %d", timezoneName, parsedTimezone, offset/int(time.Hour/time.Second))
 
 	ck := chaoskube.New(
 		client,
@@ -147,11 +125,6 @@ func (ckFC *ChaoskubeConfig) newK8sClient() (*kubernetes.Clientset, error) {
 		}
 	}
 
-	log.WithFields(log.Fields{
-		"kubeconfig": ckFC.Kubeconfig,
-		"master":     ckFC.Master,
-	}).Debug("using cluster config")
-
 	config, err := clientcmd.BuildConfigFromFlags(ckFC.Master, ckFC.Kubeconfig)
 	if err != nil {
 		return nil, err
@@ -167,10 +140,7 @@ func (ckFC *ChaoskubeConfig) newK8sClient() (*kubernetes.Clientset, error) {
 		return nil, err
 	}
 
-	log.WithFields(log.Fields{
-		"master":        config.Host,
-		"serverVersion": serverVersion,
-	}).Info("connected to cluster")
+	log.Infof("Connected to cluster. Server version: %s", serverVersion)
 
 	return client, nil
 }
@@ -178,10 +148,7 @@ func (ckFC *ChaoskubeConfig) newK8sClient() (*kubernetes.Clientset, error) {
 func parseSelector(str string) labels.Selector {
 	selector, err := labels.Parse(str)
 	if err != nil {
-		log.WithFields(log.Fields{
-			"selector": str,
-			"err":      err,
-		}).Fatal("failed to parse selector")
+		log.Fatal("failed to parse selector")
 	}
 	return selector
 }

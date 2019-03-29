@@ -6,6 +6,8 @@ import (
 	"math/rand"
 	"time"
 
+	"github.com/metrosystems-cpe/chaoskube/logger"
+
 	log "github.com/sirupsen/logrus"
 
 	"k8s.io/api/core/v1"
@@ -86,21 +88,22 @@ func (c *Chaoskube) TerminateVictim() error {
 
 	for _, wd := range c.ExcludedWeekdays {
 		if wd == now.Weekday() {
-			c.Logger.WithField("weekday", now.Weekday()).Debug(msgWeekdayExcluded)
+			// c.Logger.WithField("weekday", now.Weekday()).Debug(msgWeekdayExcluded)
+			c.Logger.Debugf("Weekday [%s] is excluded", now.Weekday())
 			return nil
 		}
 	}
 
 	for _, tp := range c.ExcludedTimesOfDay {
 		if tp.Includes(now) {
-			c.Logger.WithField("timeOfDay", now.Format(util.Kitchen24)).Debug(msgTimeOfDayExcluded)
+			c.Logger.Debugf("Time [%s] is excluded", now.Format(util.Kitchen24))
 			return nil
 		}
 	}
 
 	for _, d := range c.ExcludedDaysOfYear {
 		if d.Day() == now.Day() && d.Month() == now.Month() {
-			c.Logger.WithField("dayOfYear", now.Format(util.YearDay)).Debug(msgDayOfYearExcluded)
+			c.Logger.Debugf("Day [%s] is excluded", now.Format(util.YearDay))
 			return nil
 		}
 	}
@@ -125,7 +128,7 @@ func (c *Chaoskube) Victim() (v1.Pod, error) {
 		return v1.Pod{}, err
 	}
 
-	c.Logger.WithField("count", len(pods)).Debug("found candidates")
+	c.Logger.Debugf("Found [%d] candidates", len(pods))
 
 	if len(pods) == 0 {
 		return v1.Pod{}, errPodNotFound
@@ -162,10 +165,8 @@ func (c *Chaoskube) Candidates() ([]v1.Pod, error) {
 // DeletePod deletes the given pod.
 // It will not delete the pod if dry-run mode is enabled.
 func (c *Chaoskube) DeletePod(victim v1.Pod) error {
-	c.Logger.WithFields(log.Fields{
-		"namespace": victim.Namespace,
-		"name":      victim.Name,
-	}).Info("terminating pod")
+	// add custom logger for deteted pot in order to aggregate data in kibana
+	logger.WithCustomFields(victim.Name).Info("terminating pod")
 
 	if c.DryRun {
 		return nil
