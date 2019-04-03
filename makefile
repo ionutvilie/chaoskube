@@ -18,6 +18,8 @@ LDFLAGS = -ldflags "-w -s -X main.VERSION=${VERSION} -X main.COMMIT=${COMMIT} -X
 # Build the project
 all: linux docker
 
+SHELL := /bin/bash
+
 clean: 
 	go clean -n
 	rm -f ${CURRENT_DIR}/${BINARY}-windows-${GOARCH}.exe
@@ -43,6 +45,18 @@ docker:
 	@echo ">> building docker image"
 	docker build -t "$(DOCKER_IMAGE_NAME):$(DOCKER_IMAGE_TAG)" .
 	@echo ">> docker run -d -p 8080:8080 $(DOCKER_IMAGE_NAME)" ;
+
+build_tag_push:
+	@[ "${DOCKER_REGISTRY_URL}" ] || ( echo ">> DOCKER_REGISTRY_URL is not set"; exit 1 );
+	@echo "Prepare linux build...";
+	make linux;
+	mv ${BINARY}-linux-${GOARCH} build/${BINARY}-linux-${GOARCH};
+	@echo "Build docker image";
+	docker build -t "$(DOCKER_IMAGE_NAME):$(DOCKER_IMAGE_TAG)" -f build/chaosDockerFile ./build;
+	@echo "Prepare image to be pushed";
+	docker tag $(DOCKER_IMAGE_NAME):$(DOCKER_IMAGE_TAG) $(DOCKER_REGISTRY_URL)/$(DOCKER_IMAGE_NAME):$(DOCKER_IMAGE_TAG);
+	@echo "Push image to registry";
+	docker push $(DOCKER_REGISTRY_URL)/$(DOCKER_IMAGE_NAME):$(DOCKER_IMAGE_TAG);
 
 # works on mac and should work on linux
 simulate-pipeline-build:

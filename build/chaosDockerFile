@@ -1,0 +1,4 @@
+FROM alpine:3.9
+COPY ./chaoskube-linux-amd64 /bin/chaoskube
+COPY ./start.sh /start.sh
+CMD ["/start.sh"]
