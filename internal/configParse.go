@@ -28,6 +28,11 @@ type ChaoskubeConfig struct {
 	HTTPServer         bool
 	Debug              bool
 	Interval           time.Duration
+	Report             bool
+	GrafanaURL         string
+	Webhook            string
+	LockURL            string
+	SnapURL            string
 }
 
 // Diff method used to update config after api call
@@ -102,6 +107,14 @@ func (ckFC *ChaoskubeConfig) NewMonkey() *chaoskube.Chaoskube {
 	timezoneName, offset := time.Now().In(parsedTimezone).Zone()
 	log.Infof("Setting timezone to: name: %s, location: %s, offset: %d", timezoneName, parsedTimezone, offset/int(time.Hour/time.Second))
 
+	// kingpin.Flag("report", "Deliver report when finish").Default("false").BoolVar(&ckConf.Report)
+	// kingpin.Flag("grafana-url", "Grafana URL to take snapshoot").Default("").StringVar(&ckConf.GrafanaURL)
+	// kingpin.Flag("notification-webhook", "Webhook").Default("").StringVar(&ckConf.Webhook)
+
+	report := ckFC.Report
+	grafanaURL := ckFC.GrafanaURL
+	notifWebhook := ckFC.Webhook
+
 	ck := chaoskube.New(
 		client,
 		labelSelector,
@@ -113,6 +126,11 @@ func (ckFC *ChaoskubeConfig) NewMonkey() *chaoskube.Chaoskube {
 		parsedTimezone,
 		log.StandardLogger(),
 		ckFC.DryRun,
+		report,
+		grafanaURL,
+		notifWebhook,
+		ckFC.LockURL,
+		ckFC.SnapURL,
 	)
 	return ck
 }

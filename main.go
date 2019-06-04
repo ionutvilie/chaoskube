@@ -36,6 +36,11 @@ func init() {
 	kingpin.Flag("dry-run", "If true, don't actually do anything.").Default("true").BoolVar(&ckConf.DryRun)
 	kingpin.Flag("debug", "Enable debug logging.").BoolVar(&ckConf.Debug)
 	kingpin.Flag("httpServer", "Enable httpServer.").Default("true").BoolVar(&ckConf.HTTPServer)
+	kingpin.Flag("report", "Deliver report when finish").Default("false").BoolVar(&ckConf.Report)
+	kingpin.Flag("grafana-url", "Grafana URL to take snapshoot").Default("").StringVar(&ckConf.GrafanaURL)
+	kingpin.Flag("notification-webhook", "Webhook").Default("").StringVar(&ckConf.Webhook)
+	kingpin.Flag("lock-url", "Url for the persistence api").Default("").StringVar(&ckConf.LockURL)
+	kingpin.Flag("snap-url", "Url for the snapshot api").Default("").StringVar(&ckConf.SnapURL)
 }
 
 func main() {

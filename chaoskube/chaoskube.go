@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/metrosystems-cpe/chaoskube/logger"
+	"github.com/metrosystems-cpe/chaoskube/notifier"
 
 	log "github.com/sirupsen/logrus"
 
@@ -43,6 +44,13 @@ type Chaoskube struct {
 	DryRun bool
 	// a function to retrieve the current time
 	Now func() time.Time
+	// delivered notification
+	Delivered    bool
+	Report       bool
+	GrafanaURL   string
+	NotifWebhook string
+	LockURL      string
+	SnapURL      string
 }
 
 var (
@@ -65,7 +73,7 @@ var (
 // * a time zone to apply to the aforementioned time-based filters
 // * a logger implementing logrus.FieldLogger to send log output to
 // * whether to enable/disable dry-run mode
-func New(client kubernetes.Interface, labels, annotations, namespaces labels.Selector, excludedWeekdays []time.Weekday, excludedTimesOfDay []util.TimePeriod, excludedDaysOfYear []time.Time, timezone *time.Location, logger log.FieldLogger, dryRun bool) *Chaoskube {
+func New(client kubernetes.Interface, labels, annotations, namespaces labels.Selector, excludedWeekdays []time.Weekday, excludedTimesOfDay []util.TimePeriod, excludedDaysOfYear []time.Time, timezone *time.Location, logger log.FieldLogger, dryRun bool, report bool, grafanaURL string, notifWebhook string, lockURL string, snapURL string) *Chaoskube {
 	return &Chaoskube{
 		Client:             client,
 		Labels:             labels,
@@ -78,6 +86,12 @@ func New(client kubernetes.Interface, labels, annotations, namespaces labels.Sel
 		Logger:             logger,
 		DryRun:             dryRun,
 		Now:                time.Now,
+		Delivered:          false,
+		Report:             report,
+		GrafanaURL:         grafanaURL,
+		NotifWebhook:       notifWebhook,
+		LockURL:            lockURL,
+		SnapURL:            snapURL,
 	}
 }
 
@@ -97,6 +111,14 @@ func (c *Chaoskube) TerminateVictim() error {
 	for _, tp := range c.ExcludedTimesOfDay {
 		if tp.Includes(now) {
 			c.Logger.Debugf("Time [%s] is excluded", now.Format(util.Kitchen24))
+			// HERE
+			if c.Report {
+				if !c.Delivered {
+					notifier.TryDeliverReport(c.GrafanaURL, c.NotifWebhook, c.LockURL, c.SnapURL)
+					c.Delivered = true
+				}
+			}
+
 			return nil
 		}
 	}
