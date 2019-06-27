@@ -10,7 +10,7 @@ import (
 
 	log "github.com/sirupsen/logrus"
 
-	"k8s.io/api/core/v1"
+	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/selection"
@@ -144,7 +144,7 @@ func (c *Chaoskube) Victim() (v1.Pod, error) {
 func (c *Chaoskube) Candidates() ([]v1.Pod, error) {
 	listOptions := metav1.ListOptions{LabelSelector: c.Labels.String()}
 
-	podList, err := c.Client.Core().Pods(v1.NamespaceAll).List(listOptions)
+	podList, err := c.Client.CoreV1().Pods(v1.NamespaceAll).List(listOptions)
 	if err != nil {
 		return nil, err
 	}
@@ -172,7 +172,7 @@ func (c *Chaoskube) DeletePod(victim v1.Pod) error {
 		return nil
 	}
 
-	return c.Client.Core().Pods(victim.Namespace).Delete(victim.Name, nil)
+	return c.Client.CoreV1().Pods(victim.Namespace).Delete(victim.Name, nil)
 }
 
 // filterByNamespaces filters a list of pods by a given namespace selector.
