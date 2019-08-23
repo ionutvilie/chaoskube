@@ -36,6 +36,7 @@ func init() {
 	kingpin.Flag("dry-run", "If true, don't actually do anything.").Default("true").BoolVar(&ckConf.DryRun)
 	kingpin.Flag("debug", "Enable debug logging.").BoolVar(&ckConf.Debug)
 	kingpin.Flag("httpServer", "Enable httpServer.").Default("true").BoolVar(&ckConf.HTTPServer)
+	kingpin.Flag("DDEvents", "toggle data dog events").Default("true").BoolVar(&ckConf.DDEvents)
 }
 
 func main() {

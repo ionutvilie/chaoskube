@@ -11,6 +11,7 @@ import (
 	"k8s.io/client-go/tools/clientcmd"
 
 	"github.com/metrosystems-cpe/chaoskube/chaoskube"
+	"github.com/metrosystems-cpe/chaoskube/datadog"
 	"github.com/metrosystems-cpe/chaoskube/util"
 )
 
@@ -28,6 +29,7 @@ type ChaoskubeConfig struct {
 	HTTPServer         bool
 	Debug              bool
 	Interval           time.Duration
+	DDEvents           bool
 }
 
 // Diff method used to update config after api call
@@ -113,6 +115,8 @@ func (ckFC *ChaoskubeConfig) NewMonkey() *chaoskube.Chaoskube {
 		parsedTimezone,
 		log.StandardLogger(),
 		ckFC.DryRun,
+		ckFC.DDEvents,
+		datadog.NewDDClient(),
 	)
 	return ck
 }

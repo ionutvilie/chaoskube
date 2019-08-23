@@ -6,6 +6,8 @@ import (
 	"math/rand"
 	"time"
 
+	"github.com/DataDog/datadog-go/statsd"
+	"github.com/metrosystems-cpe/chaoskube/datadog"
 	"github.com/metrosystems-cpe/chaoskube/logger"
 
 	log "github.com/sirupsen/logrus"
@@ -42,7 +44,9 @@ type Chaoskube struct {
 	// dry run will not allow any pod terminations
 	DryRun bool
 	// a function to retrieve the current time
-	Now func() time.Time
+	Now      func() time.Time
+	DDEvents bool
+	DDClient *statsd.Client
 }
 
 var (
@@ -65,7 +69,7 @@ var (
 // * a time zone to apply to the aforementioned time-based filters
 // * a logger implementing logrus.FieldLogger to send log output to
 // * whether to enable/disable dry-run mode
-func New(client kubernetes.Interface, labels, annotations, namespaces labels.Selector, excludedWeekdays []time.Weekday, excludedTimesOfDay []util.TimePeriod, excludedDaysOfYear []time.Time, timezone *time.Location, logger log.FieldLogger, dryRun bool) *Chaoskube {
+func New(client kubernetes.Interface, labels, annotations, namespaces labels.Selector, excludedWeekdays []time.Weekday, excludedTimesOfDay []util.TimePeriod, excludedDaysOfYear []time.Time, timezone *time.Location, logger log.FieldLogger, dryRun bool, ddEvents bool, ddClient *statsd.Client) *Chaoskube {
 	return &Chaoskube{
 		Client:             client,
 		Labels:             labels,
@@ -78,6 +82,8 @@ func New(client kubernetes.Interface, labels, annotations, namespaces labels.Sel
 		Logger:             logger,
 		DryRun:             dryRun,
 		Now:                time.Now,
+		DDEvents:           ddEvents,
+		DDClient:           ddClient,
 	}
 }
 
@@ -172,7 +178,18 @@ func (c *Chaoskube) DeletePod(victim v1.Pod) error {
 		return nil
 	}
 
-	return c.Client.CoreV1().Pods(victim.Namespace).Delete(victim.Name, nil)
+	err := c.Client.CoreV1().Pods(victim.Namespace).Delete(victim.Name, nil)
+
+	if err == nil {
+		//send ddEvent
+		if c.DDEvents {
+			err := datadog.NewEvent(c.DDClient, victim)
+			if err != nil {
+				log.Fatal(err)
+			}
+		}
+	}
+	return err
 }
 
 // filterByNamespaces filters a list of pods by a given namespace selector.
