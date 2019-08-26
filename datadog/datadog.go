@@ -29,7 +29,7 @@ func NewEvent(client *statsd.Client, victim v1.Pod) error {
 	e.AlertType = "info"
 	e.Hostname, _ = os.Hostname()
 	e.Title = "[ChaosKube] " + victim.Name + " was killed"
-	e.Text = "Pod" + victim.Name + "was deleted by ChaosKube"
+	e.Text = "Pod " + victim.Name + " was deleted by ChaosKube"
 	e.Priority = "low"
 
 	err := client.Event(e)
