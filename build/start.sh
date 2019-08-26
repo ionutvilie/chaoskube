@@ -7,4 +7,5 @@ chaoskube \
     --namespaces=${DRP_CF_KUBERNETES_NAMESPACE} \
     --excluded-weekdays="Sat,Sun" \
     --excluded-times-of-day=${CHAOSKUBE_RUNNING_HOURS} \
-    --excluded-days-of-year=${CHAOSKUBE_EXCLUDED_DAYS}
+    --excluded-days-of-year=${CHAOSKUBE_EXCLUDED_DAYS} \
+    --DDEvents

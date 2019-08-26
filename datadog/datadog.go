@@ -25,14 +25,19 @@ func NewDDClient() (Client *statsd.Client) {
 
 // NewEvent ...
 func NewEvent(client *statsd.Client, victim v1.Pod) error {
-	var e *statsd.Event
+	var e statsd.Event
+	vertical := os.Getenv("DRP_CF_VERTICAL")
+	stage := os.Getenv("DRP_CF_STAGE")
+	location := os.Getenv("DRP_CF_LOCATION")
+
 	e.AlertType = "info"
 	e.Hostname, _ = os.Hostname()
 	e.Title = "[ChaosKube] " + victim.Name + " was killed"
 	e.Text = "Pod " + victim.Name + " was deleted by ChaosKube"
 	e.Priority = "low"
+	e.Tags = []string{"ChaosKube", vertical, stage, location}
 
-	err := client.Event(e)
+	err := client.Event(&e)
 	if err != nil {
 		log.Fatal(err)
 	}
